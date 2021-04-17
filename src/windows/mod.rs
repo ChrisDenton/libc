@@ -235,11 +235,21 @@ pub const SIGABRT: ::c_int = 22;
 pub const NSIG: ::c_int = 23;
 pub const SIG_ERR: ::c_int = -1;
 
-// inline comment below appeases style checker
-#[cfg(all(target_env = "msvc", feature = "rustc-dep-of-std"))] // " if "
-#[link(name = "msvcrt", cfg(not(target_feature = "crt-static")))]
-#[link(name = "libcmt", cfg(target_feature = "crt-static"))]
-extern "C" {}
+cfg_if! {
+    if #[cfg(all(target_env = "msvc", feature = "rustc-dep-of-std"))] {
+        // Set either the static or dynamic C runtime library using a linker directive.
+        // For documentation on the `.drectve` section see:
+        // https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#the-drectve-section-object-only
+        #[cfg(not(target_feature = "crt-static"))]
+        const MSVC_C_RUNTIME_DIRECTIVE: [u8; 23] = *b"/DEFAULTLIB:msvcrt.lib ";
+        #[cfg(target_feature = "crt-static")]
+        const MSVC_C_RUNTIME_DIRECTIVE: [u8; 23] = *b"/DEFAULTLIB:libcmt.lib ";
+
+        #[link_section = ".drectve"]
+        #[used]
+        static MSVC_LINKER_DIRECTIVE: [u8; MSVC_C_RUNTIME_DIRECTIVE.len()] = MSVC_C_RUNTIME_DIRECTIVE;
+    }
+}
 
 #[cfg_attr(feature = "extra_traits", derive(Debug))]
 pub enum FILE {}
